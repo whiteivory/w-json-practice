@@ -16,9 +16,9 @@ typedef struct {
 enum
 {
 	LEPT_PARSE_OK = 0,
-	LEPT_PARSE_EXCEPT_VALUE, //当只有空格的时候
+	LEPT_PARSE_EXPECT_VALUE, //当只有空格的时候
 	LEPT_PARSE_INVALID_VALUE,//不是所给类型中的一种
-	LEPT_PARSE_NOTSIGULAR_VALUE, //最后的空格后面还有值的时候
+	LEPT_PARSE_ROOT_NOT_SINGULAR, //最后的空格后面还有值的时候
 };
 
 /*返回错误或者成功码*/
