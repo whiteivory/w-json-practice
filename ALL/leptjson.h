@@ -10,6 +10,7 @@ typedef enum {
 	LEPT_NULL, LEPT_FALSE, LEPT_TRUE, LEPT_NUMBER, LEPT_STRING, LEPT_ARRAY, LEPT_OBJECT
 } lept_type;
 typedef struct {
+	double n;
 	lept_type type;
 }lept_value;
 /*enum就是int*/
@@ -24,3 +25,4 @@ enum
 /*返回错误或者成功码*/
 int lept_parse(lept_value*,const char*);
 lept_type lept_get_type(const lept_value*);//mark:notice const
+double lept_get_number(const lept_value*);
