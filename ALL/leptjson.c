@@ -1,3 +1,8 @@
+#ifdef _WINDOWS
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
+
 #include"leptjson.h"
 #include<assert.h>
 #include <errno.h>   /* errno, ERANGE */
@@ -136,6 +141,7 @@ void lept_set_string(lept_value*v, const char* c,size_t size) {
 	v->type = LEPT_STRING;
 	v->u.s.len = size;
 }
+/*解析到LEPT_PARSE_INVALID_STRING_ESCAPE回滚c->stack*/
 static int lept_parse_string(lept_contest*c, lept_value* v) {
 	EXPECT(c, '\"');
 	size_t head = c->top; //mistake：开始我觉得stack就是head了，这只对目前的情况
@@ -144,7 +150,7 @@ static int lept_parse_string(lept_contest*c, lept_value* v) {
 	while (1) {
 		switch (*p)
 		{
-		case '\"': 
+		case '"':  //这里加不加\都可以
 			/*mistake:一开始写成了v->u.s.s = (char*)lept_contest_pop(c, len);
 			这样在contest销毁后lept_value也没了,而且忘加结束符号了*/
 			lept_set_string(v, c->stack, c->top- head);
@@ -154,7 +160,27 @@ static int lept_parse_string(lept_contest*c, lept_value* v) {
 			c->top = head;//mistake:这两行忘加了，因为返回的不是mistake,而是一种新的类型
 			p++;
 			return LEPT_PARSE_MISS_QUOTATION_MARK;
+		case '\\':
+			p++;
+			switch (*p)
+			{
+			case '\"': PUTC(c, '\"'); break; 
+			case '\\': PUTC(c, '\\'); break;
+			case '/':  PUTC(c, '/'); break;
+			case 'b':  PUTC(c, '\b'); break;
+			case 'f':  PUTC(c, '\f'); break;
+			case 'n':  PUTC(c, '\n'); break;
+			case 'r':  PUTC(c, '\r'); break;
+			case 't':  PUTC(c, '\t'); break;
+			default:
+				c->top = head; //notice: 这里要回滚的，而不是清空的，为了增强鲁棒性？
+				return LEPT_PARSE_INVALID_STRING_ESCAPE;
+			}
 		default:
+			if ((unsigned char)*p < 0x20) {
+				c->top = head;
+				return LEPT_PARSE_INVALID_STRING_CHAR;
+			}
 			PUTC(c, *p);
 			p++;
 			break;
@@ -222,4 +248,21 @@ size_t lept_get_string_length(const lept_value*v) {
 	//mistake: 忘记assert 类型
 	assert(v != NULL && v->type == LEPT_STRING);
 	return v->u.s.len;
+}
+/*LEPT_TRUE 返回 1 FALSE 返回 0*/
+int lept_get_boolean(const lept_value* v) {
+	assert(v != NULL && (v->type == LEPT_FALSE || v->type == LEPT_TRUE));
+	return v->type == LEPT_TRUE;
+}
+
+void lept_set_boolean(lept_value* v, int b) {
+	//mistake: 没有下一行不严密
+	lept_free(v);
+	v->type = b ? LEPT_TRUE : LEPT_FALSE;
+}
+
+void lept_set_number(lept_value* v, double n) {
+	lept_free(v);
+	v->type = LEPT_NUMBER;
+	v->u.n = n;
 }

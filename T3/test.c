@@ -1,3 +1,7 @@
+#ifdef _WINDOWS
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
 /*
 	tdd 测试驱动开发。
 	先写测试，然后运行，新的测试会失败，然后编写代码实现，若再失败重新编写修改代码
@@ -39,15 +43,22 @@ static test_pass = 0;
 /*notice: 判断字符串相等的方法*/
 #define EXPECT_EQ_STRING(expect,actual,len) \
 	EXPECT_EQ_BASE(sizeof(expect) - 1 == len && memcmp(expect, actual, len) == 0, expect, actual, "%s")
+#define EXPECT_FALSE(actual) \
+	EXPECT_EQ_BASE((actual == 0),"false","true","%s")
+#define EXPECT_TRUE(actual) \
+	EXPECT_EQ_BASE((actual == 1),"true","false","%s")
+
 /*这里 do while语法又很好得解决了变量作用域的问题，防止重复定义v*/
 /*检测parse失败的错误，这种情况下lept_value type成员会设置成LEPT_NULL*/
 /*todo: 这里v.type=LEPT_FALSE 不太好，应该放在构造函数里初始化*/
-#define TEST_ERROR(expect_ret,test_value) \
+#define TEST_ERROR(expect_ret,json) \
 	do{ \
 	lept_value v;\
+	lept_init(&v); \
 	v.type = LEPT_FALSE;\
-	EXPECT_EQ_INT(expect_ret, lept_parse(&v, test_value));\
+	EXPECT_EQ_INT(expect_ret, lept_parse(&v, json));\
 	EXPECT_EQ_INT(LEPT_NULL, lept_get_type(&v));\
+	lept_free(&v);\
 	}while(0)
 
 //mistake 这里需要传两个参数才能达到目的
@@ -173,7 +184,7 @@ static void test_parse_missing_quotation_mark() {
 }
 
 static void test_parse_invalid_string_escape() {
-#if 0
+#if 1
 	TEST_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE, "\"\\v\"");
 	TEST_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE, "\"\\'\"");
 	TEST_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE, "\"\\0\"");
@@ -182,7 +193,7 @@ static void test_parse_invalid_string_escape() {
 }
 
 static void test_parse_invalid_string_char() {
-#if 0
+#if 1
 	TEST_ERROR(LEPT_PARSE_INVALID_STRING_CHAR, "\"\x01\"");
 	TEST_ERROR(LEPT_PARSE_INVALID_STRING_CHAR, "\"\x1F\"");
 #endif
@@ -198,13 +209,25 @@ static void test_access_null() {
 	lept_free(&v);
 }
 
+//主要测试用lept_set的时候有没有进行lept_free
 static void test_access_boolean() {
-	/* \TODO */
-	/* Use EXPECT_TRUE() and EXPECT_FALSE() */
+	lept_value v;
+	lept_init(&v);
+	lept_set_string(&v, "a", 1);
+	lept_set_boolean(&v, 1);
+	EXPECT_TRUE(lept_get_boolean(&v));
+	lept_set_boolean(&v, 0);
+	EXPECT_FALSE(lept_get_boolean(&v));
+	lept_free(&v);
 }
 
 static void test_access_number() {
-	/* \TODO */
+	lept_value v;
+	lept_init(&v);
+	lept_set_string(&v, "a", 1);
+	lept_set_number(&v, 1234.5);
+	EXPECT_EQ_DOUBLE(1234.5, lept_get_number(&v));
+	lept_free(&v);
 }
 
 static void test_access_string() {
@@ -237,6 +260,10 @@ void test_parse() {
 }
 
 int main() {
+	//question: 不知道为什么按照说的没有检测数内存泄漏
+#ifdef _WINDOWS
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
 	test_parse();
 	return main_ret;
 }
